@@ -33,8 +33,11 @@
  */
 
 
+import com.opencsv.CSVReader;
+
 import javax.sound.midi.*;
 import java.io.*;
+import java.util.List;
 
 /**
  * Display content of a MIDI file
@@ -43,7 +46,6 @@ class DumpSequence {
     private static String[] strKeyNames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
     private static Receiver sm_receiver = new DumpReceiver(System.out, true); // standard option
-
 
     public static void main(String[] args) {
         String inFilePath;
@@ -119,12 +121,19 @@ class DumpSequence {
                 output(event);
             }
         }
-        // TODO: getPatchList()
     }
 
     private static void output(MidiEvent event) {
         MidiMessage message = event.getMessage();
         long lTicks = event.getTick();
         sm_receiver.send(message, lTicks);
+    }
+
+    static void toStarttickAndDuration(File csvFile) {
+        try (CSVReader csvReader = new CSVReader(new FileReader(csvFile))) {
+            List<String[]> lines = csvReader.readAll();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

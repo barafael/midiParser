@@ -1,5 +1,3 @@
-
-
 /*
  *	DumpReceiver.java
  *
@@ -38,17 +36,10 @@
 import javax.sound.midi.*;
 import java.io.PrintStream;
 
-
 /**
  * Displays the file format information of a MIDI file.
  */
-class DumpReceiver
-        implements Receiver {
-
-    private static long seByteCount = 0;
-    private static long smByteCount = 0;
-    private static long seCount = 0;
-    private static long smCount = 0;
+class DumpReceiver implements Receiver {
 
     private static final String[] strKeyNames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
@@ -101,16 +92,16 @@ class DumpReceiver
         this(printStream, false);
     }
 
-    public DumpReceiver(PrintStream printStream,
-                        boolean printTimeStampAsTicks,
-                        boolean printMessages) {
+    DumpReceiver(PrintStream printStream,
+                 boolean printTimeStampAsTicks,
+                 boolean printMessages) {
         this.printStream = printStream;
         this.printTimeStampAsTicks = printTimeStampAsTicks;
         this.printMessages = printMessages;
     }
 
-    public DumpReceiver(PrintStream printStream,
-                        boolean bPrintTimeStampAsTicks) {
+    DumpReceiver(PrintStream printStream,
+                 boolean bPrintTimeStampAsTicks) {
         this.printStream = printStream;
         this.printTimeStampAsTicks = bPrintTimeStampAsTicks;
     }
@@ -120,7 +111,7 @@ class DumpReceiver
         printStream.close();
     }
 
-    public PrintStream getPrintstream() {
+    PrintStream getPrintstream() {
         return printStream;
     }
 
@@ -224,8 +215,6 @@ class DumpReceiver
             // String strChannel = "channel " + nChannel + ": ";
             // strMessage = strChannel + strMessage; // channel not considered relevant
         }
-        smCount++;
-        smByteCount += message.getLength();
         return /*"[" + getHexString(message) + "] " + */ strMessage;
     }
 
@@ -238,10 +227,7 @@ class DumpReceiver
             strMessage = "Sysex message: F0" + getHexString(abData);
         } else if (message.getStatus() == SysexMessage.SPECIAL_SYSTEM_EXCLUSIVE) {
             strMessage = "Continued Sysex message F7" + getHexString(abData);
-            seByteCount--; // do not count the F7
         }
-        seByteCount += abData.length + 1;
-        seCount++; // for the status byte
         return "-- " + strMessage;
     }
 
@@ -365,11 +351,6 @@ class DumpReceiver
         return (nLowerPart & 0x7F) | ((nHigherPart & 0x7F) << 7);
     }
 
-
-    private static int signedByteToUnsigned(byte b) {
-        return b & 0xFF;
-    }
-
     // convert from microseconds per quarter note to beats per minute and vice versa
     private static float convertTempo(float value) {
         if (value <= 0) {
@@ -377,7 +358,6 @@ class DumpReceiver
         }
         return 60000000.0f / value;
     }
-
 
     private static final char[] hexDigits =
             {'0', '1', '2', '3',
@@ -392,53 +372,8 @@ class DumpReceiver
             sbuf.append(' ');
             sbuf.append(hexDigits[(anAByte & 0xF0) >> 4]);
             sbuf.append(hexDigits[anAByte & 0x0F]);
-            /*byte	bhigh = (byte) ((bytes[i] &  0xf0) >> 4);
-            sbuf.append((char) (bhigh > 9 ? bhigh + 'A' - 10: bhigh + '0'));
-			byte	blow = (byte) (bytes[i] & 0x0f);
-			sbuf.append((char) (blow > 9 ? blow + 'A' - 10: blow + '0'));*/
         }
         return new String(sbuf);
     }
-
-    private static String intToHex(int i) {
-        return "" + hexDigits[(i & 0xF0) >> 4]
-                + hexDigits[i & 0x0F];
-    }
-
-    public static String getHexString(ShortMessage sm) {
-        // bug in J2SDK 1.4.1
-        // return getHexString(sm.getMessage());
-        int status = sm.getStatus();
-        String res = intToHex(sm.getStatus());
-        // if one-byte message, return
-        switch (status) {
-            case 0xF6:            // Tune Request
-            case 0xF7:            // EOX
-                // System real-time messages
-            case 0xF8:            // Timing Clock
-            case 0xF9:            // Undefined
-            case 0xFA:            // Start
-            case 0xFB:            // Continue
-            case 0xFC:            // Stop
-            case 0xFD:            // Undefined
-            case 0xFE:            // Active Sensing
-            case 0xFF:
-                return res;
-        }
-        res += ' ' + intToHex(sm.getData1());
-        // if 2-byte message, return
-        switch (status) {
-            case 0xF1:            // MTC Quarter Frame
-            case 0xF3:            // Song Select
-                return res;
-        }
-        switch (sm.getCommand()) {
-            case 0xC0:
-            case 0xD0:
-                return res;
-        }
-        // 3-byte messages left
-        res += ' ' + intToHex(sm.getData2());
-        return res;
-    }
 }
+
