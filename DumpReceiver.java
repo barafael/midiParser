@@ -139,10 +139,9 @@ class DumpReceiver implements Receiver {
         } else {
             if (!strMessage.contains("--")) {
                 printStream.println(strTimeStamp + strMessage);
-            }//TODO look over that
+            }
         }
     }
-
 
     private String decodeMessage(ShortMessage message) {
         String strMessage;
@@ -312,7 +311,6 @@ class DumpReceiver implements Receiver {
                 break;
 
             case 0x7F:
-                // TODO: decode vendor code, dump data in rows
                 String strDataDump = getHexString(abData);
                 strMessage = "Sequencer-Specific Meta event: " + strDataDump;
                 break;
