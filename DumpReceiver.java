@@ -35,6 +35,7 @@
 
 import javax.sound.midi.*;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 
 /**
  * Displays the file format information of a MIDI file.
@@ -88,10 +89,6 @@ class DumpReceiver implements Receiver {
     private final boolean printTimeStampAsTicks;
     private boolean printMessages = false;
 
-    public DumpReceiver(PrintStream printStream) {
-        this(printStream, false);
-    }
-
     DumpReceiver(PrintStream printStream,
                  boolean printTimeStampAsTicks,
                  boolean printMessages) {
@@ -142,7 +139,7 @@ class DumpReceiver implements Receiver {
         } else {
             if (!strMessage.contains("--")) {
                 printStream.println(strTimeStamp + strMessage);
-            }
+            }//TODO look over that
         }
     }
 
@@ -210,11 +207,6 @@ class DumpReceiver implements Receiver {
                 strMessage = "unknown message: status = " + message.getStatus() + "; byte1 = " + message.getData1() + "; byte2 = " + message.getData2();
                 break;
         }
-        if (message.getCommand() != 0xF0) {
-            // int nChannel = message.getChannel() + 1;
-            // String strChannel = "channel " + nChannel + ": ";
-            // strMessage = strChannel + strMessage; // channel not considered relevant
-        }
         return /*"[" + getHexString(message) + "] " + */ strMessage;
     }
 
@@ -231,7 +223,6 @@ class DumpReceiver implements Receiver {
         return "-- " + strMessage;
     }
 
-
     private String decodeMessage(MetaMessage message) {
         // byte[] abMessage = message.getMessage(); // unused variable
         byte[] abData = message.getData();
@@ -245,37 +236,37 @@ class DumpReceiver implements Receiver {
                 break;
 
             case 1:
-                String strText = new String(abData);
+                String strText = new String(abData, Charset.defaultCharset());
                 strMessage = "Text Event: " + strText;
                 break;
 
             case 2:
-                String strCopyrightText = new String(abData);
+                String strCopyrightText = new String(abData, Charset.defaultCharset());
                 strMessage = "Copyright Notice: " + strCopyrightText;
                 break;
 
             case 3:
-                String strTrackName = new String(abData);
+                String strTrackName = new String(abData, Charset.defaultCharset());
                 strMessage = "Sequence/Track Name: " + strTrackName;
                 break;
 
             case 4:
-                String strInstrumentName = new String(abData);
+                String strInstrumentName = new String(abData, Charset.defaultCharset());
                 strMessage = "Instrument Name: " + strInstrumentName;
                 break;
 
             case 5:
-                String strLyrics = new String(abData);
+                String strLyrics = new String(abData, Charset.defaultCharset());
                 strMessage = "Lyric: " + strLyrics;
                 break;
 
             case 6:
-                String strMarkerText = new String(abData);
+                String strMarkerText = new String(abData, Charset.defaultCharset());
                 strMessage = "Marker: " + strMarkerText;
                 break;
 
             case 7:
-                String strCuePointText = new String(abData);
+                String strCuePointText = new String(abData, Charset.defaultCharset());
                 strMessage = "Cue Point: " + strCuePointText;
                 break;
 

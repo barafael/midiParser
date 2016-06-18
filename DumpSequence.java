@@ -33,11 +33,8 @@
  */
 
 
-import com.opencsv.CSVReader;
-
 import javax.sound.midi.*;
 import java.io.*;
-import java.util.List;
 
 /**
  * Display content of a MIDI file
@@ -67,9 +64,9 @@ class DumpSequence {
 
         try {
             OutputStream outputStream = new FileOutputStream(assetPath + "csv/" + filename + ".csv");
-            PrintStream printStream = new PrintStream(outputStream);
+            PrintStream printStream = new PrintStream(outputStream, false, "UTF-8");
             sm_receiver = new DumpReceiver(printStream, true, false); // also closes, consumes the stream
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
             e.printStackTrace();
         }
         /*
@@ -84,7 +81,7 @@ class DumpSequence {
         }
 
 		/*
-		 *	And now, output the data.
+         *	And now, output the data.
 		 */
         System.out.println("File: " + inFilePath);
         System.out.println("Length: " + sequence.getTickLength() + " ticks");
@@ -113,11 +110,11 @@ class DumpSequence {
         }
         System.out.println("Resolution: " + sequence.getResolution() + strResolutionType);
         Track[] tracks = sequence.getTracks();
-        for (int nTrack = 0; nTrack < tracks.length; nTrack++) {
-            ((DumpReceiver) sm_receiver).getPrintstream().println("-- Track " + nTrack);
-            Track track = tracks[nTrack];
-            for (int nEvent = 0; nEvent < track.size(); nEvent++) {
-                MidiEvent event = track.get(nEvent);
+        for (int trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
+            ((DumpReceiver) sm_receiver).getPrintstream().println("-- Track " + trackIndex);
+            Track track = tracks[trackIndex];
+            for (int eventIndex = 0; eventIndex < track.size(); eventIndex++) {
+                MidiEvent event = track.get(eventIndex);
                 output(event);
             }
         }
@@ -127,13 +124,5 @@ class DumpSequence {
         MidiMessage message = event.getMessage();
         long lTicks = event.getTick();
         sm_receiver.send(message, lTicks);
-    }
-
-    static void toStarttickAndDuration(File csvFile) {
-        try (CSVReader csvReader = new CSVReader(new FileReader(csvFile))) {
-            List<String[]> lines = csvReader.readAll();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }
