@@ -57,6 +57,15 @@ class midiUtil {
         return 60000000.0f / value;
     }
 
+    static String getKeyName(int nKeyNumber) {
+        if (nKeyNumber > 127) {
+            return "illegal value";
+        } else {
+            int nNote = nKeyNumber % 12;
+            int nOctave = nKeyNumber / 12;
+            return strKeyNames[nNote] + (nOctave - 1);
+        }
+    }
 
     private static final char[] hexDigits =
             {'0', '1', '2', '3',
