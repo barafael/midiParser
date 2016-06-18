@@ -22,6 +22,7 @@ import static midiUtil.MidiUtil.getKeyName;
  * Part of midiParser, in package decoders.
  */
 public class SeparateTrackDecoder implements Decoder<ShortMessage> {
+    private static final short FALLBACK_LENGTH = 250;
     private final Path outputDir;
     private final Sequence sequence;
     private final boolean isSharp;
@@ -54,8 +55,12 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
                     decodeMessage((ShortMessage) event.getMessage(), tick);
                 }
             }
-            if (notes.isEmpty()) {
-                continue;
+            if (notes.isEmpty()) { // no notes or note offs parsed
+                if (currentlyPlayingNotes.size() > 10) { // but there are still notes which weren't ended(missing note off...)
+                    currentlyPlayingNotes.stream().forEach(note -> note.setEndTickAndDuration(note.getStartTick() + FALLBACK_LENGTH));
+                } else {
+                    continue;
+                }
             }
             List<String> lines = new ArrayList<>();
             notes.entrySet().stream().forEach(entry -> entry.getValue().forEach(note -> lines.add(note.toString())));
@@ -77,44 +82,55 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
         midiUtil.Note currentNote;
         switch (message.getCommand()) {
             case 0x80: // note off
-                notename = getKeyName(message.getData1(), isSharp);
-                System.out.println(tick + " note off parsed: " + notename);
-                int noteIndex = -1;
-                for (int i = 0; i < currentlyPlayingNotes.size(); i++) {
-                    if (currentlyPlayingNotes.get(i).getName().equals(notename)) {
-                        noteIndex = i;
-                        break;
-                    }
-                }
-                if (noteIndex >= 0) {
-                    currentNote = currentlyPlayingNotes.get(noteIndex);
-                    currentNote.setEndTickAndDuration(tick);
-                    currentlyPlayingNotes.remove(currentNote);
-                    if (notes.containsKey(currentNote.getStartTick())) {
-                        notes.get(currentNote.getStartTick()).add(currentNote);
-                    } else {
-                        List<midiUtil.Note> chord = new ArrayList<>();
-                        chord.add(currentNote);
-                        notes.put(currentNote.getStartTick(), chord);
-                    }
-                } else {
-                    System.err.println("corresponding note on event not found!");
-                }
-
-                strMessage = "note Off " + notename + ", velocity " + message.getData2();
+                strMessage = parseNoteOff(message, tick);
                 break;
 
             case 0x90: // note on
-                notename = getKeyName(message.getData1(), isSharp);
-                System.out.println(tick + " note on parsed: " + notename);
-                currentNote = new midiUtil.Note(notename, tick, message.getData2());
-                currentlyPlayingNotes.add(currentNote);
-                strMessage = "note On " + notename + ", velocity " + message.getData2();
+                strMessage = parseNoteOn(message, tick);
                 break;
             default:
                 strMessage = "unknown message: status = " + message.getStatus() + "; byte1 = " + message.getData1() + "; byte2 = " + message.getData2();
                 break;
         }
         return strMessage;
+    }
+
+    private String parseNoteOn(ShortMessage message, long tick) {
+        if (message.getData2() == 0) { // Fake note off signal
+            return parseNoteOff(message, tick);
+        }
+        String notename = getKeyName(message.getData1(), isSharp);
+        System.out.println(tick + " note on parsed: " + notename + ", " + message.getData2());
+        midiUtil.Note currentNote = new midiUtil.Note(notename, tick, message.getData2());
+        currentlyPlayingNotes.add(currentNote);
+        return "note On " + notename + ", velocity " + message.getData2();
+    }
+
+    private String parseNoteOff(ShortMessage message, long tick) {
+        String notename = getKeyName(message.getData1(), isSharp);
+        System.out.println(tick + " note off parsed: " + notename);
+        int noteIndex = -1;
+        for (int i = 0; i < currentlyPlayingNotes.size(); i++) {
+            if (currentlyPlayingNotes.get(i).getName().equals(notename)) {
+                noteIndex = i;
+                break;
+            }
+        }
+        if (noteIndex >= 0) {
+            midiUtil.Note currentNote = currentlyPlayingNotes.get(noteIndex);
+            currentNote.setEndTickAndDuration(tick);
+            currentlyPlayingNotes.remove(currentNote);
+            if (notes.containsKey(currentNote.getStartTick())) {
+                notes.get(currentNote.getStartTick()).add(currentNote);
+            } else {
+                List<midiUtil.Note> chord = new ArrayList<>();
+                chord.add(currentNote);
+                notes.put(currentNote.getStartTick(), chord);
+            }
+        } else {
+            System.err.println("corresponding note on event not found!");
+        }
+
+        return "note Off " + notename + ", velocity " + message.getData2();
     }
 }
