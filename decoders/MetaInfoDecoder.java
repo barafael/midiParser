@@ -22,8 +22,8 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
     private Path outputFile = Paths.get("assets/midi/csv/");
     private final String filename;
 
-    public MetaInfoDecoder(Path outputDir, String songName) {
-        filename = songName + "_meta.csv";
+    public MetaInfoDecoder(Path outputDir, String songname) {
+        filename = songname + "_meta.csv";
         this.outputFile = Paths.get(outputDir + filename);
     }
 
@@ -31,9 +31,9 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
     public void decode(Sequence sequence, String name) {
         List<String> lines = new ArrayList<>();
 
-        lines.add("File: " + filename);
-        lines.add("Length: " + sequence.getTickLength() + " ticks");
-        lines.add("Duration: " + sequence.getMicrosecondLength() + " microseconds");
+        lines.add("-- File: " + filename);
+        lines.add("-- Length: " + sequence.getTickLength() + " ticks");
+        lines.add("-- Duration: " + sequence.getMicrosecondLength() + " microseconds");
         float divisionType = sequence.getDivisionType();
         String strDivisionType = null;
         if (divisionType == Sequence.PPQ) { // divisionType is a float, so no switch-case
@@ -48,7 +48,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
             strDivisionType = "SMPTE, 30 frames per second";
         }
 
-        lines.add("DivisionType: " + strDivisionType);
+        lines.add("-- DivisionType: " + strDivisionType);
 
         String strResolutionType;
         if (sequence.getDivisionType() == Sequence.PPQ) {
@@ -56,7 +56,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
         } else {
             strResolutionType = " ticks per frame";
         }
-        lines.add("Resolution: " + sequence.getResolution() + strResolutionType);
+        lines.add("-- Resolution: " + sequence.getResolution() + strResolutionType);
 
         lines.add("-- Event parsing starts here --");
 
@@ -92,37 +92,37 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
                 break;
 
             case 1:
-                String text = new String(abData);
+                String text = new String(abData, Charset.defaultCharset());
                 strMessage = "Text Event: " + text;
                 break;
 
             case 2:
-                String strCopyrightText = new String(abData);
+                String strCopyrightText = new String(abData, Charset.defaultCharset());
                 strMessage = "Copyright Notice: " + strCopyrightText;
                 break;
 
             case 3:
-                String strTrackName = new String(abData);
+                String strTrackName = new String(abData, Charset.defaultCharset());
                 strMessage = "Sequence/Track Name: " + strTrackName;
                 break;
 
             case 4:
-                String strInstrumentName = new String(abData);
+                String strInstrumentName = new String(abData, Charset.defaultCharset());
                 strMessage = "Instrument Name: " + strInstrumentName;
                 break;
 
             case 5:
-                String strLyrics = new String(abData);
+                String strLyrics = new String(abData, Charset.defaultCharset());
                 strMessage = "Lyric: " + strLyrics;
                 break;
 
             case 6:
-                String strMarkerText = new String(abData);
+                String strMarkerText = new String(abData, Charset.defaultCharset());
                 strMessage = "Marker: " + strMarkerText;
                 break;
 
             case 7:
-                String strCuePointText = new String(abData);
+                String strCuePointText = new String(abData, Charset.defaultCharset());
                 strMessage = "Cue Point: " + strCuePointText;
                 break;
 
