@@ -10,7 +10,7 @@ import java.nio.file.Path;
 interface Decoder<T extends MidiMessage> {
     void decode(Sequence sequence, String filename);
 
-    String decodeMessage(T message);
+    String decodeMessage(T message, long tick);
 
     void setOutputDir(Path path);
 }
