@@ -41,9 +41,8 @@ public class Note {
     @Override
     public String toString() {
         if (isFinal()) {
-            String buddy = String.valueOf(startTick) + ", " + name + ", " +
+            return startTick + ", " + name + ", " +
                     duration + ", " + velocity;
-            return buddy;
         } else {
             System.err.println("Warning: non-finalised note toString() called!");
             return startTick + ", " + name + ", " + velocity;
