@@ -68,7 +68,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
                 MidiEvent event = track.get(eventIndex);
                 if (event.getMessage() instanceof MetaMessage) {
                     long tick = event.getTick();
-                    String strMessage = decodeMessage((MetaMessage) event.getMessage());
+                    String strMessage = decodeMessage((MetaMessage) event.getMessage(), tick);
                     lines.add(tick + ", " + strMessage);
                 }
             }
@@ -82,7 +82,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
     }
 
     @Override
-    public String decodeMessage(MetaMessage message) {
+    public String decodeMessage(MetaMessage message, long tick) {
         byte[] abData = message.getData();
         String strMessage;
         switch (message.getType()) {
