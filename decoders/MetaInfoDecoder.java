@@ -7,28 +7,31 @@ import javax.sound.midi.Track;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import static decoders.midiUtil.*;
+import static midiUtil.MidiUtil.*;
 
 /**
  * Created by ra on 18.06.16.
  * Part of midiParser, in package decoders.
  */
 public class MetaInfoDecoder implements Decoder<MetaMessage> {
-    private Path outputFile = Paths.get("assets/midi/csv/");
+    private Path outputPath = Paths.get("assets/midi/csv/");
     private final String filename;
+    private final Sequence sequence;
 
-    public MetaInfoDecoder(Path outputDir, String songname) {
+    public MetaInfoDecoder(Path outputDir, String songname, Sequence sequence) {
+        this.sequence = sequence;
         filename = songname + "_meta.csv";
-        this.outputFile = Paths.get(outputDir + filename);
+        this.outputPath = outputDir.resolve(filename);
     }
 
     @Override
-    public void decode(Sequence sequence, String name) {
+    public void decode() {
         List<String> lines = new ArrayList<>();
 
         lines.add("-- File: " + filename);
@@ -58,7 +61,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
         }
         lines.add("-- Resolution: " + sequence.getResolution() + strResolutionType);
 
-        lines.add("-- Event parsing starts here --");
+        lines.add("-- Meta event parsing starts here --");
 
         Track[] tracks = sequence.getTracks();
         for (int trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
@@ -73,61 +76,64 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
                 }
             }
 
-            try {
-                Files.write(outputFile, lines, Charset.forName("UTF-8"));
-            } catch (IOException e) {
-                e.printStackTrace();
+        }
+        try {
+            if (!Files.exists(outputPath, LinkOption.NOFOLLOW_LINKS)) {
+                Files.createFile(outputPath);
             }
+            Files.write(outputPath, lines, Charset.forName("UTF-8"));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     @Override
     public String decodeMessage(MetaMessage message, long tick) {
-        byte[] abData = message.getData();
+        byte[] data = message.getData();
         String strMessage;
         switch (message.getType()) {
             case 0:
-                int sequenceNumber = ((abData[0] & 0xFF) << 8) | (abData[1] & 0xFF);
+                int sequenceNumber = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                 strMessage = "Sequence Number: " + sequenceNumber;
                 break;
 
             case 1:
-                String text = new String(abData, Charset.defaultCharset());
+                String text = new String(data, Charset.defaultCharset());
                 strMessage = "Text Event: " + text;
                 break;
 
             case 2:
-                String strCopyrightText = new String(abData, Charset.defaultCharset());
+                String strCopyrightText = new String(data, Charset.defaultCharset());
                 strMessage = "Copyright Notice: " + strCopyrightText;
                 break;
 
             case 3:
-                String strTrackName = new String(abData, Charset.defaultCharset());
+                String strTrackName = new String(data, Charset.defaultCharset());
                 strMessage = "Sequence/Track Name: " + strTrackName;
                 break;
 
             case 4:
-                String strInstrumentName = new String(abData, Charset.defaultCharset());
+                String strInstrumentName = new String(data, Charset.defaultCharset());
                 strMessage = "Instrument Name: " + strInstrumentName;
                 break;
 
             case 5:
-                String strLyrics = new String(abData, Charset.defaultCharset());
+                String strLyrics = new String(data, Charset.defaultCharset());
                 strMessage = "Lyric: " + strLyrics;
                 break;
 
             case 6:
-                String strMarkerText = new String(abData, Charset.defaultCharset());
+                String strMarkerText = new String(data, Charset.defaultCharset());
                 strMessage = "Marker: " + strMarkerText;
                 break;
 
             case 7:
-                String strCuePointText = new String(abData, Charset.defaultCharset());
+                String strCuePointText = new String(data, Charset.defaultCharset());
                 strMessage = "Cue Point: " + strCuePointText;
                 break;
 
             case 0x20:
-                int nChannelPrefix = abData[0] & 0xFF;
+                int nChannelPrefix = data[0] & 0xFF;
                 strMessage = "MIDI Channel Prefix: " + nChannelPrefix;
                 break;
 
@@ -136,9 +142,9 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
                 break;
 
             case 0x51:
-                int tempo = ((abData[0] & 0xFF) << 16)
-                        | ((abData[1] & 0xFF) << 8)
-                        | (abData[2] & 0xFF);           // tempo in microseconds per beat
+                int tempo = ((data[0] & 0xFF) << 16)
+                        | ((data[1] & 0xFF) << 8)
+                        | (data[2] & 0xFF);           // tempo in microseconds per beat
                 float bpm = convertTempo(tempo);
                 // truncate it to 2 digits after dot
                 bpm = Math.round(bpm * 100.0f) / 100.0f;
@@ -146,47 +152,38 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
                 break;
 
             case 0x54:
-                // System.out.println("data array length: " + abData.length);
+                // System.out.println("data array length: " + data.length);
                 strMessage = "SMTPE Offset: "
-                        + (abData[0] & 0xFF) + ":"
-                        + (abData[1] & 0xFF) + ":"
-                        + (abData[2] & 0xFF) + "."
-                        + (abData[3] & 0xFF) + "."
-                        + (abData[4] & 0xFF);
+                        + (data[0] & 0xFF) + ":"
+                        + (data[1] & 0xFF) + ":"
+                        + (data[2] & 0xFF) + "."
+                        + (data[3] & 0xFF) + "."
+                        + (data[4] & 0xFF);
                 break;
 
             case 0x58:
                 strMessage = "Time Signature: "
-                        + (abData[0] & 0xFF) + "/" + (1 << (abData[1] & 0xFF))
-                        + "; MIDI clocks per metronome tick: " + (abData[2] & 0xFF)
-                        + "; 1/32 per 24 MIDI clocks: " + (abData[3] & 0xFF);
+                        + (data[0] & 0xFF) + "/" + (1 << (data[1] & 0xFF))
+                        + "; MIDI clocks per metronome tick: " + (data[2] & 0xFF)
+                        + "; 1/32 per 24 MIDI clocks: " + (data[3] & 0xFF);
                 break;
 
             case 0x59: // key signature
-                String strGender = (abData[1] == 1) ? "minor" : "major";
-                strMessage = "Key Signature: " + strKeySignatures[abData[0] + 7] + " " + strGender;
+                String strGender = (data[1] == 1) ? "minor" : "major";
+                strMessage = "Key Signature: " + KeySig.values()[data[0] + 7].toString() + " " + strGender;
                 break;
 
             case 0x7F:
-                String strDataDump = getHexString(abData);
+                String strDataDump = getHexString(data);
                 strMessage = "Sequencer-Specific Meta event: " + strDataDump;
                 break;
 
             default:
-                String strUnknownDump = getHexString(abData);
+                String strUnknownDump = getHexString(data);
                 strMessage = "unknown Meta event: " + strUnknownDump;
                 break;
 
         }
         return strMessage;
-    }
-
-    @Override
-    public void setOutputDir(Path path) {
-        if (path.endsWith("/")) {
-            outputFile = Paths.get(path + filename);
-        } else {
-            outputFile = Paths.get(path + "/" + filename);
-        }
     }
 }
