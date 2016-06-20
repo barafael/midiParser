@@ -6,6 +6,7 @@ package midiUtil;
  */
 public class Note {
     private final String name;
+    private final int octave;
 
     public long getStartTick() {
         return startTick;
@@ -17,15 +18,13 @@ public class Note {
 
     private long duration = -1;
 
-    private Note(String name, long startTick, long endTick, int velocity) {
-        this.name = name;
-        this.startTick = startTick;
-        this.endTick = endTick;
-        this.duration = endTick - startTick;
-        this.velocity = velocity;
-    }
-
     public Note(String name, long startTick, int velocity) {
+        if (name.matches(".*\\d")) { // Notename included octave
+            this.octave = Integer.parseInt(name.substring(name.length() - 1));
+            name = name.replaceAll("\\d", "");
+        } else {
+            this.octave = -1;
+        }
         this.name = name;
         this.startTick = startTick;
         this.velocity = velocity;
@@ -41,7 +40,7 @@ public class Note {
     @Override
     public String toString() {
         if (isFinal()) {
-            return startTick + ", " + name + ", " +
+            return startTick + ", " + name + ", " + octave + ", " +
                     duration + ", " + velocity;
         } else {
             System.err.println("Warning: non-finalised note toString() called!");
@@ -54,6 +53,6 @@ public class Note {
     }
 
     public String getName() {
-        return name;
+        return octave == -1 ? name : name + octave;
     }
 }

@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import static midiUtil.SymbolConverter.flatSharpCollapser;
+import static midiUtil.SymbolConverter.flatSharpInflater;
+
 /**
  * Created by ra on 18.06.16.
  * Part of midiParser, in package Main.
@@ -18,7 +21,7 @@ class Main {
     public static void main(String[] args) {
         String inFilePath;
         String assetPath = "assets/midi/";
-        String filename = "giordani_caro.mid";
+        String filename = "preludioC.mid";
         String outputPath = assetPath + "csv/" + filename + "/";
         try {
             Files.createDirectories(Paths.get(outputPath));
@@ -46,5 +49,7 @@ class Main {
         decoders.Decoder<ShortMessage> shortMessageDecoder = new SeparateTrackDecoder(Paths.get(outputPath), sequence);
         metaDecoder.decode();
         shortMessageDecoder.decode();
+
+        System.out.println(flatSharpInflater(flatSharpCollapser("AbBbCs")));
     }
 }

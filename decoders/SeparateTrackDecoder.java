@@ -9,10 +9,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 import static midiUtil.MidiUtil.determineKey;
 import static midiUtil.MidiUtil.getKeyName;
@@ -78,8 +75,6 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
     @Override
     public String decodeMessage(ShortMessage message, long tick) {
         String strMessage;
-        String notename;
-        midiUtil.Note currentNote;
         switch (message.getCommand()) {
             case 0x80: // note off
                 strMessage = parseNoteOff(message, tick);
