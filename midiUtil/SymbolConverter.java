@@ -1,5 +1,6 @@
 package midiUtil;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,30 +13,32 @@ public class SymbolConverter {
     private static final Map<Character, String> symbol2note;
 
     static {
-        note2symbol = new HashMap<>();
-        note2symbol.put("Cb", '¢');
-        note2symbol.put("Db", 'ð');
-        note2symbol.put("Eb", '€');
-        note2symbol.put("Fb", 'đ');
-        note2symbol.put("Gb", 'ŋ');
-        note2symbol.put("Ab", 'æ');
-        note2symbol.put("Bb", '“');
+        Map<String, Character> tempMap = new HashMap<>();
+        tempMap.put("Cb", '¢');
+        tempMap.put("Db", 'ð');
+        tempMap.put("Eb", '€');
+        tempMap.put("Fb", 'đ');
+        tempMap.put("Gb", 'ŋ');
+        tempMap.put("Ab", 'æ');
+        tempMap.put("Bb", '“');
 
-        note2symbol.put("Cs", '©');
-        note2symbol.put("Ds", 'Ð');
-        note2symbol.put("Es", 'Þ');
-        note2symbol.put("Fs", 'ª');
-        note2symbol.put("Gs", 'Ŋ');
-        note2symbol.put("As", 'Æ');
-        note2symbol.put("Bs", '‘');
+        tempMap.put("Cs", '©');
+        tempMap.put("Ds", 'Ð');
+        tempMap.put("Es", 'Þ');
+        tempMap.put("Fs", 'ª');
+        tempMap.put("Gs", 'Ŋ');
+        tempMap.put("As", 'Æ');
+        tempMap.put("Bs", '‘');
+        note2symbol = Collections.unmodifiableMap(tempMap);
     }
 
     static {
-        symbol2note = new HashMap<>();
+        Map<Character, String> tempMap = new HashMap<>();
         note2symbol.entrySet().stream().forEach(entry -> {
             String noteName = entry.getKey().substring(0, 1).toUpperCase() + entry.getKey().substring(1);
-            symbol2note.put(entry.getValue(), noteName);
+            tempMap.put(entry.getValue(), noteName);
         });
+        symbol2note = Collections.unmodifiableMap(tempMap);
     }
 
     /**
