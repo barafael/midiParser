@@ -9,7 +9,10 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import static midiUtil.MidiUtil.determineKey;
 import static midiUtil.MidiUtil.getKeyName;
@@ -35,7 +38,8 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
     }
 
     private final List<midiUtil.Note> currentlyPlayingNotes = new ArrayList<>();
-    private final Map<Long, List<midiUtil.Note>> notes = new TreeMap<>(); // traversal in natural order of Long(i.e. chronological, since the tick is the key
+    // traversal in natural order of Long(i.e. chronological, since the tick is the key
+    private final Map<Long, List<midiUtil.Note>> notes = new TreeMap<>();
 
     @Override
     public void decode() {
@@ -52,7 +56,7 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
                 }
             }
             if (notes.isEmpty()) { // no notes or note offs parsed
-                if (currentlyPlayingNotes.size() > 10) { // but there are still notes which weren't ended(missing note off...)
+                if (currentlyPlayingNotes.size() > 10) { // there are still notes which weren't ended(missing note off...)
                     currentlyPlayingNotes.stream().forEach(note -> note.setEndTickAndDuration(note.getStartTick() + FALLBACK_LENGTH));
                 } else {
                     continue;

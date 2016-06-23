@@ -37,6 +37,9 @@ public class Note {
         }
     }
 
+    /**
+     *  Change this to change csv output of notes
+     */
     @Override
     public String toString() {
         if (isFinal()) {
