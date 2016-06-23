@@ -10,9 +10,9 @@ import javax.sound.midi.Sequence;
  */
 public class MidiUtil {
 
-    enum keyNamesSharp {C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B}
+    private enum keyNamesSharp {C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B}
 
-    enum keyNamesFlat {C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, Cb}
+    private enum keyNamesFlat {C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, Cb}
 
     public enum KeySig {Cb, Gb, Db, Ab, Eb, Bb, F, C, G, D, A, E, B, Fs, Cs}
 

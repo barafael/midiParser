@@ -15,8 +15,7 @@ import static midiUtil.MidiUtil.determineKey;
 import static midiUtil.MidiUtil.getKeyName;
 
 /**
- * Created by ra on 18.06.16.
- * Part of midiParser, in package decoders.
+ * Saves all the shortmessages(note on/off) in tracks to one file per track in outputDir/trackN.csv.
  */
 public class SeparateTrackDecoder implements Decoder<ShortMessage> {
     private static final short FALLBACK_LENGTH = 250;
@@ -47,7 +46,7 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
             Track track = sequence.getTracks()[trackIndex];
             for (int eventIndex = 0; eventIndex < track.size(); eventIndex++) {
                 MidiEvent event = track.get(eventIndex);
-                if (event.getMessage() instanceof ShortMessage) {
+                if (event.getMessage() instanceof ShortMessage) { // in this decoder, only interested in shortmessages
                     long tick = event.getTick();
                     decodeMessage((ShortMessage) event.getMessage(), tick);
                 }
@@ -80,7 +79,7 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
                 strMessage = parseNoteOff(message, tick);
                 break;
 
-            case 0x90: // note on
+            case 0x90: // note on or note onff (note on with velocity 0, effectively note off)
                 strMessage = parseNoteOn(message, tick);
                 break;
             default:

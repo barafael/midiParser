@@ -9,18 +9,17 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import static midiUtil.MidiUtil.*;
 
 /**
- * Created by ra on 18.06.16.
- * Part of midiParser, in package decoders.
+ * Saves a metadata file to outputDir/songname_meta.csv. Information not in any track
+ * (global song info) at the start of the file is masked by a '--' at the start of the line.
  */
 public class MetaInfoDecoder implements Decoder<MetaMessage> {
-    private Path outputPath = Paths.get("assets/midi/csv/");
+    private final Path outputPath;
     private final String filename;
     private final Sequence sequence;
 
@@ -39,7 +38,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
         lines.add("-- Duration: " + sequence.getMicrosecondLength() + " microseconds");
         float divisionType = sequence.getDivisionType();
         String strDivisionType = null;
-        if (divisionType == Sequence.PPQ) { // divisionType is a float, so no switch-case
+        if (divisionType == Sequence.PPQ) { // divisionType is a float, so no switch-case(midi was implemented before enums were a thing)
             strDivisionType = "PPQ";
         } else if (divisionType == Sequence.SMPTE_24) {
             strDivisionType = "SMPTE, 24 frames per second";
