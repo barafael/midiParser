@@ -19,6 +19,7 @@ public class MidiUtil {
     // convert from microseconds per quarter note to beats per minute and vice versa
     public static float convertTempo(float value) {
         if (value <= 0) {
+        	// TODO Should throw an exception?!
             value = 0.1f;
         }
         return 60000000.0f / value;
@@ -49,6 +50,8 @@ public class MidiUtil {
             buffer.append(hexDigits[(anAByte & 0xF0) >> 4]);
             buffer.append(hexDigits[anAByte & 0x0F]);
         }
+        
+        // TODO Use buffer.toString()
         return new String(buffer);
     }
 
@@ -57,6 +60,7 @@ public class MidiUtil {
             for (int eventIndex = 0; eventIndex < sequence.getTracks()[trackIndex].size(); eventIndex++) {
                 MidiEvent event = sequence.getTracks()[trackIndex].get(eventIndex);
                 if (event.getMessage() instanceof MetaMessage) {
+                	// TODO Magic number?!
                     if (((MetaMessage) event.getMessage()).getType() == 0x59) { // key signature
                         byte[] data = ((MetaMessage) event.getMessage()).getData();
                         return KeySig.values()[data[0] + 7].toString().contains("#");
