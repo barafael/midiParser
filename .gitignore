@@ -12,5 +12,10 @@
 hs_err_pid*
 
 
+#eclipse
+.classpath
+.project
+.settings
+
 # additional files
 assets/
