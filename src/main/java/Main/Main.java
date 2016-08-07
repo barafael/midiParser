@@ -18,7 +18,7 @@ class Main {
     public static void main(String[] args) {
         String inFilePath;
         String assetPath = "assets/midi/";
-        String filename = "preludioC.mid";
+        String filename = "beethoven_opus10_3.mid";
         String outputPath = assetPath + "csv/" + filename + "/";
         try {
             Files.createDirectories(Paths.get(outputPath));

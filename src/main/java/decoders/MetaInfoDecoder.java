@@ -29,6 +29,12 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
         this.outputPath = outputDir.resolve(filename);
     }
 
+    /*
+     *  TODO decode should decode to memory.
+     *  That way one can add more encoders, like to CSV,JSON,XML, (or C Code for Arduino :D)
+     */
+    
+    
     @Override
     public void decode() {
         List<String> lines = new ArrayList<>();
@@ -77,6 +83,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
 
         }
         try {
+        	// TODO Why don't we follow links?
             if (!Files.exists(outputPath, LinkOption.NOFOLLOW_LINKS)) {
                 Files.createFile(outputPath);
             }
@@ -91,6 +98,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
         byte[] data = message.getData();
         String strMessage;
         switch (message.getType()) {
+        // TODO Mind introducing enum?
             case 0:
                 int sequenceNumber = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
                 strMessage = "Sequence Number: " + sequenceNumber;

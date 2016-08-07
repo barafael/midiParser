@@ -8,12 +8,15 @@ public class Note {
     private final String name;
     private final int octave;
 
+    // TODO Structure?
     public long getStartTick() {
         return startTick;
     }
 
     private final long startTick;
     private final int velocity;
+    
+    // TODO C-Style!
     private long endTick = -1;
 
     private long duration = -1;
