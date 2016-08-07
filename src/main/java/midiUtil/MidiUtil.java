@@ -44,15 +44,13 @@ public class MidiUtil {
             };
 
     public static String getHexString(byte[] bytes) {
-        StringBuffer buffer = new StringBuffer(bytes.length * 3 + 2);
-        for (byte anAByte : bytes) {
-            buffer.append(' ');
-            buffer.append(hexDigits[(anAByte & 0xF0) >> 4]);
-            buffer.append(hexDigits[anAByte & 0x0F]);
+        StringBuilder sb = new StringBuilder(bytes.length * 3 + 2);
+        for (byte b : bytes) {
+            sb.append(' ');
+            sb.append(hexDigits[(b & 0xF0) >> 4]);
+            sb.append(hexDigits[b & 0x0F]);
         }
-        
-        // TODO Use buffer.toString()
-        return new String(buffer);
+        return sb.toString();
     }
 
     public static boolean determineKey(Sequence sequence) {
