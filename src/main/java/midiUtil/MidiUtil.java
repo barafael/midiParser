@@ -9,6 +9,7 @@ import javax.sound.midi.Sequence;
  * Part of midiParser, in package midiUtil.
  */
 public class MidiUtil {
+    private static final byte KEY_SIGNATURE_FLAG =  0x59;
 
     private enum keyNamesSharp {C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B}
 
@@ -25,14 +26,14 @@ public class MidiUtil {
         return 60000000.0f / msPerBeat;
     }
 
-    public static String getKeyName(int nKeyNumber, boolean sharp) {
-        if (nKeyNumber > 127) {
+    public static String getKeyName(int keyNumber, boolean sharp) {
+        if (keyNumber > 127) {
             return "illegal value";
         } else {
-            int nNote = nKeyNumber % 12;
-            int nOctave = nKeyNumber / 12;
-            return sharp ? keyNamesSharp.values()[nNote].toString() + (nOctave - 1)
-                    : keyNamesFlat.values()[nNote].toString() + (nOctave - 1);
+            int note = keyNumber % 12;
+            int octave = keyNumber/12 - 1;
+            return sharp ? keyNamesSharp.values()[note].toString() + (octave)
+                    : keyNamesFlat.values()[note].toString() + (octave);
         }
     }
 
@@ -58,8 +59,7 @@ public class MidiUtil {
             for (int eventIndex = 0; eventIndex < sequence.getTracks()[trackIndex].size(); eventIndex++) {
                 MidiEvent event = sequence.getTracks()[trackIndex].get(eventIndex);
                 if (event.getMessage() instanceof MetaMessage) {
-                	// TODO Magic number?!
-                    if (((MetaMessage) event.getMessage()).getType() == 0x59) { // key signature
+                    if (((MetaMessage) event.getMessage()).getType() == KEY_SIGNATURE_FLAG) {
                         byte[] data = ((MetaMessage) event.getMessage()).getData();
                         return KeySig.values()[data[0] + 7].toString().contains("#");
                     }
