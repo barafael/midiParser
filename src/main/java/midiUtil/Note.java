@@ -5,60 +5,59 @@ package midiUtil;
  * Part of midiParser, in package midiUtil.
  */
 public class Note {
+    private final static int DEFAULT_OCTAVE = 1;
+    private static final int DEFAULT_VELOCITY = 60;
+    private static final long FALLBACK_DURATION = 200;
+
     private final String name;
     private final int octave;
 
-    // TODO Structure?
-    public long getStartTick() {
-        return startTick;
+    public final long startTick;
+
+    private long duration;
+
+    private final int velocity;
+
+    public Note(String name, long startTick) {
+        this(name, startTick, DEFAULT_VELOCITY);
     }
 
-    private final long startTick;
-    private final int velocity;
-    
-    // TODO C-Style!
-    private long endTick = -1;
-
-    private long duration = -1;
-
     public Note(String name, long startTick, int velocity) {
-        if (name.matches(".*\\d")) { // Notename included octave
+        if (name.matches(".*\\d")) { // Note name includes octave number
             this.octave = Integer.parseInt(name.substring(name.length() - 1));
             name = name.replaceAll("\\d", "");
         } else {
-            this.octave = -1;
+            this.octave = DEFAULT_OCTAVE;
         }
         this.name = name;
         this.startTick = startTick;
         this.velocity = velocity;
     }
 
-    public void setEndTickAndDuration(long endTick) {
-        if (!isFinal()) {
-            this.endTick = endTick;
+    public void setDefaultDuration() {
+        this.duration = FALLBACK_DURATION;
+    }
+
+    public void setDuration(long endTick) {
+        if (startTick <= endTick) {
             this.duration = endTick - startTick;
+        } else {
+            this.setDuration(startTick + FALLBACK_DURATION);
+            throw new IllegalArgumentException("Note ended before it began! " +
+                    "This program is not compatible with MIDI files generated while travelling faster than light.");
         }
     }
 
     /**
-     *  Change this to change csv output of notes
+     * Change this to change csv output of notes; TODO generalize this
      */
     @Override
     public String toString() {
-        if (isFinal()) {
-            return startTick + ", " + name + ", " + octave + ", " +
-                    duration + ", " + velocity;
-        } else {
-            System.err.println("Warning: non-finalised note toString() called!");
-            return startTick + ", " + name + ", " + velocity;
-        }
-    }
-
-    private boolean isFinal() {
-        return endTick != -1 && duration != -1;
+        return startTick + ", " + name + ", " + octave + ", " +
+                duration + ", " + velocity;
     }
 
     public String getName() {
-        return octave == -1 ? name : name + octave;
+        return name + octave;
     }
 }

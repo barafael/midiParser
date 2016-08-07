@@ -1,5 +1,7 @@
 package decoders;
 
+import midiUtil.Note;
+
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
 import javax.sound.midi.ShortMessage;
@@ -21,7 +23,6 @@ import static midiUtil.MidiUtil.getKeyName;
  * Saves all the shortmessages(note on/off) in tracks to one file per track in outputDir/trackN.csv.
  */
 public class SeparateTrackDecoder implements Decoder<ShortMessage> {
-    private static final short FALLBACK_LENGTH = 250;
     private final Path outputDir;
     private final Sequence sequence;
     private final boolean isSharp;
@@ -56,8 +57,8 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
                 }
             }
             if (notes.isEmpty()) { // no notes or note offs parsed
-                if (currentlyPlayingNotes.size() > 10) { // there are still notes which weren't ended(missing note off...)
-                    currentlyPlayingNotes.forEach(note -> note.setEndTickAndDuration(note.getStartTick() + FALLBACK_LENGTH));
+                if (currentlyPlayingNotes.size() > 10) { // there are still notes which weren't ended(missing note off...) TODO why 10?
+                    currentlyPlayingNotes.forEach(Note::setDefaultDuration);
                 } else {
                     continue;
                 }
@@ -116,14 +117,14 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
         }
         if (noteIndex >= 0) {
             midiUtil.Note currentNote = currentlyPlayingNotes.get(noteIndex);
-            currentNote.setEndTickAndDuration(tick);
+            currentNote.setDuration(tick);
             currentlyPlayingNotes.remove(currentNote);
-            if (notes.containsKey(currentNote.getStartTick())) {
-                notes.get(currentNote.getStartTick()).add(currentNote);
+            if (notes.containsKey(currentNote.startTick)) {
+                notes.get(currentNote.startTick).add(currentNote);
             } else {
                 List<midiUtil.Note> chord = new ArrayList<>();
                 chord.add(currentNote);
-                notes.put(currentNote.getStartTick(), chord);
+                notes.put(currentNote.startTick, chord);
             }
         } else {
             System.err.println("corresponding note on event not found!");
