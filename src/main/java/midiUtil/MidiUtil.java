@@ -17,12 +17,12 @@ public class MidiUtil {
     public enum KeySig {Cb, Gb, Db, Ab, Eb, Bb, F, C, G, D, A, E, B, Fs, Cs}
 
     // convert from microseconds per quarter note to beats per minute and vice versa
-    public static float convertTempo(float value) {
-        if (value <= 0) {
-        	// TODO Should throw an exception?!
-            value = 0.1f;
+    public static float convertTempo(float msPerBeat) {
+        if (msPerBeat <= 100) {
+            // throw new tooFreakingFastException()
+            throw new IllegalArgumentException("This is really fast!");
         }
-        return 60000000.0f / value;
+        return 60000000.0f / msPerBeat;
     }
 
     public static String getKeyName(int nKeyNumber, boolean sharp) {
