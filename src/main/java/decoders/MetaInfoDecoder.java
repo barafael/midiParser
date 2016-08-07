@@ -83,8 +83,7 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
 
         }
         try {
-        	// TODO Why don't we follow links?
-            if (!Files.exists(outputPath, LinkOption.NOFOLLOW_LINKS)) {
+            if (!Files.exists(outputPath)) {
                 Files.createFile(outputPath);
             }
             Files.write(outputPath, lines, Charset.forName("UTF-8"));
