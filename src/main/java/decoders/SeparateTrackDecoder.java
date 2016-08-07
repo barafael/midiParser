@@ -57,13 +57,13 @@ public class SeparateTrackDecoder implements Decoder<ShortMessage> {
             }
             if (notes.isEmpty()) { // no notes or note offs parsed
                 if (currentlyPlayingNotes.size() > 10) { // there are still notes which weren't ended(missing note off...)
-                    currentlyPlayingNotes.stream().forEach(note -> note.setEndTickAndDuration(note.getStartTick() + FALLBACK_LENGTH));
+                    currentlyPlayingNotes.forEach(note -> note.setEndTickAndDuration(note.getStartTick() + FALLBACK_LENGTH));
                 } else {
                     continue;
                 }
             }
             List<String> lines = new ArrayList<>();
-            notes.entrySet().stream().forEach(entry -> entry.getValue().forEach(note -> lines.add(note.toString())));
+            notes.entrySet().forEach(entry -> entry.getValue().forEach(note -> lines.add(note.toString())));
             try {
                 if (!Files.exists(file)) {
                     Files.createFile(file);
