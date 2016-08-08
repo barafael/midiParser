@@ -1,5 +1,7 @@
 package decoders;
 
+import midiUtil.MetaEvent;
+
 import javax.sound.midi.MetaMessage;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
@@ -7,56 +9,30 @@ import javax.sound.midi.Track;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import static midiUtil.MidiUtil.*;
+import static midiUtil.MetaEvent.EventType.*;
+import static midiUtil.MidiUtil.KeySig;
+import static midiUtil.MidiUtil.convertTempo;
 
 /**
  * Saves a metadata file to outputDir/songname_meta.csv. Information not in any track
  * (global song info) at the start of the file is masked by a '--' at the start of the line.
  */
-public class MetaInfoDecoder implements Decoder<MetaMessage> {
-    private final Path outputPath;
-    private final String filename;
-    private final Sequence sequence;
+public class MetaInfoDecoder /*implements Decoder<MetaMessage, MetaEvent> */ {
 
-    public MetaInfoDecoder(Path outputDir, String songname, Sequence sequence) {
-        this.sequence = sequence;
-        filename = songname + "_meta.csv";
-        this.outputPath = outputDir.resolve(filename);
-    }
+    /*@Override*/
+    public static List<MetaEvent> decode(Sequence sequence) {
+        List<MetaEvent> metaEvents = new ArrayList<>();
 
-    /*
-     *  TODO decode should decode to memory.
-     *  That way one can add more encoders, like to CSV,JSON,XML, (or C Code for Arduino :D)
-     */
-    
-    
-    @Override
-    public void decode() {
-        List<String> lines = new ArrayList<>();
+        metaEvents.add(new MetaEvent("Length: " + sequence.getTickLength() + " ticks", 0, COMMENT));
+        metaEvents.add(new MetaEvent("Duration: " + sequence.getMicrosecondLength() + " microseconds", 0, COMMENT));
 
-        lines.add("-- File: " + filename);
-        lines.add("-- Length: " + sequence.getTickLength() + " ticks");
-        lines.add("-- Duration: " + sequence.getMicrosecondLength() + " microseconds");
-        float divisionType = sequence.getDivisionType();
-        String strDivisionType = null;
-        if (divisionType == Sequence.PPQ) { // divisionType is a float, so no switch-case(midi was implemented before enums were a thing)
-            strDivisionType = "PPQ";
-        } else if (divisionType == Sequence.SMPTE_24) {
-            strDivisionType = "SMPTE, 24 frames per second";
-        } else if (divisionType == Sequence.SMPTE_25) {
-            strDivisionType = "SMPTE, 25 frames per second";
-        } else if (divisionType == Sequence.SMPTE_30DROP) {
-            strDivisionType = "SMPTE, 29.97 frames per second";
-        } else if (divisionType == Sequence.SMPTE_30) {
-            strDivisionType = "SMPTE, 30 frames per second";
-        }
-
-        lines.add("-- DivisionType: " + strDivisionType);
+        String divisionType = getDivisionType(sequence.getDivisionType());
+        metaEvents.add(new MetaEvent("DivisionType: " + divisionType, 0, COMMENT));
 
         String strResolutionType;
         if (sequence.getDivisionType() == Sequence.PPQ) {
@@ -64,87 +40,77 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
         } else {
             strResolutionType = " ticks per frame";
         }
-        lines.add("-- Resolution: " + sequence.getResolution() + strResolutionType);
+        metaEvents.add(new MetaEvent("Resolution: " + sequence.getResolution() + strResolutionType, 0, COMMENT));
 
-        lines.add("-- Meta event parsing starts here --");
+        metaEvents.add(new MetaEvent("Meta event parsing starts here --", 0, COMMENT));
 
         Track[] tracks = sequence.getTracks();
         for (int trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
-            lines.add("Track " + trackIndex);
+            metaEvents.add(new MetaEvent(String.valueOf(trackIndex), 0, TRACK_CHANGE));
             Track track = tracks[trackIndex];
             for (int eventIndex = 0; eventIndex < track.size(); eventIndex++) {
                 MidiEvent event = track.get(eventIndex);
                 if (event.getMessage() instanceof MetaMessage) {
                     long tick = event.getTick();
-                    String strMessage = decodeMessage((MetaMessage) event.getMessage(), tick);
-                    lines.add(tick + ", " + strMessage);
+                    decodeMessage((MetaMessage) event.getMessage(), tick, metaEvents);
                 }
             }
 
         }
-        try {
-            if (!Files.exists(outputPath)) {
-                Files.createFile(outputPath);
-            }
-            Files.write(outputPath, lines, Charset.forName("UTF-8"));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        return metaEvents;
     }
 
-    @Override
-    public String decodeMessage(MetaMessage message, long tick) {
+    private static void decodeMessage(MetaMessage message, long tick, List<MetaEvent> metaEvents) {
         byte[] data = message.getData();
-        String strMessage;
         switch (message.getType()) {
-        // TODO Mind introducing enum?
+            // TODO introduced enum somehow; not sure if better.
             case 0:
                 int sequenceNumber = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
-                strMessage = "Sequence Number: " + sequenceNumber;
+                metaEvents.add(new MetaEvent(String.valueOf(sequenceNumber), tick, SEQ_NUM));
                 break;
 
             case 1:
                 String text = new String(data, Charset.defaultCharset());
-                strMessage = "Text Event: " + text;
+                metaEvents.add(new MetaEvent(text, tick, TEXT));
                 break;
 
             case 2:
-                String strCopyrightText = new String(data, Charset.defaultCharset());
-                strMessage = "Copyright Notice: " + strCopyrightText;
+                String copyrightText = new String(data, Charset.defaultCharset());
+                metaEvents.add(new MetaEvent(copyrightText, tick, COPYRIGHT_NOTICE));
                 break;
 
             case 3:
-                String strTrackName = new String(data, Charset.defaultCharset());
-                strMessage = "Sequence/Track Name: " + strTrackName;
+                String trackName = new String(data, Charset.defaultCharset());
+                metaEvents.add( new MetaEvent(trackName, tick, SEQ_TRACK_NAME));
                 break;
 
             case 4:
-                String strInstrumentName = new String(data, Charset.defaultCharset());
-                strMessage = "Instrument Name: " + strInstrumentName;
+                String instrumentName = new String(data, Charset.defaultCharset());
+                metaEvents.add(new MetaEvent(instrumentName, tick, INSTRUMENT_CHANGE));
                 break;
 
             case 5:
-                String strLyrics = new String(data, Charset.defaultCharset());
-                strMessage = "Lyric: " + strLyrics;
+                String lyrics = new String(data, Charset.defaultCharset());
+                metaEvents.add(new MetaEvent(lyrics, tick, LYRICS));
                 break;
 
             case 6:
-                String strMarkerText = new String(data, Charset.defaultCharset());
-                strMessage = "Marker: " + strMarkerText;
+                String markerText = new String(data, Charset.defaultCharset());
+                metaEvents.add(new MetaEvent(markerText, tick, MARKER_TEXT));
                 break;
 
             case 7:
-                String strCuePointText = new String(data, Charset.defaultCharset());
-                strMessage = "Cue Point: " + strCuePointText;
+                String cuePointText = new String(data, Charset.defaultCharset());
+                metaEvents.add(new MetaEvent(cuePointText, tick, CUE_POINT));
                 break;
 
             case 0x20:
-                int nChannelPrefix = data[0] & 0xFF;
-                strMessage = "MIDI Channel Prefix: " + nChannelPrefix;
+                int channelPrefix = data[0] & 0xFF;
+                metaEvents.add(new MetaEvent(String.valueOf(channelPrefix), tick, CHANNEL_PREFIX));
                 break;
 
             case 0x2F:
-                strMessage = "End of Track";
+                metaEvents.add(new MetaEvent("", tick, TRACK_END));
                 break;
 
             case 0x51:
@@ -152,44 +118,62 @@ public class MetaInfoDecoder implements Decoder<MetaMessage> {
                         | ((data[1] & 0xFF) << 8)
                         | (data[2] & 0xFF);           // tempo in microseconds per beat
                 float bpm = convertTempo(tempo);
-                // truncate it to 2 digits after dot
+                // truncate to 2 digits after dot
                 bpm = Math.round(bpm * 100.0f) / 100.0f;
-                strMessage = "Set Tempo: " + bpm + " bpm";
+                metaEvents.add(new MetaEvent(String.valueOf(bpm), tick, TEMPO_CHANGE));
                 break;
 
             case 0x54:
-                // System.out.println("data array length: " + data.length);
-                strMessage = "SMTPE Offset: "
-                        + (data[0] & 0xFF) + ":"
+                String smpte_offset = (data[0] & 0xFF) + ":"
                         + (data[1] & 0xFF) + ":"
                         + (data[2] & 0xFF) + "."
                         + (data[3] & 0xFF) + "."
                         + (data[4] & 0xFF);
+                metaEvents.add(new MetaEvent(smpte_offset, tick, SMPTE_OFFSET));
                 break;
 
-            case 0x58:
-                strMessage = "Time Signature: "
-                        + (data[0] & 0xFF) + "/" + (1 << (data[1] & 0xFF))
-                        + "; MIDI clocks per metronome tick: " + (data[2] & 0xFF)
-                        + "; 1/32 per 24 MIDI clocks: " + (data[3] & 0xFF);
+            case 0x58: // time signature
+                String timeSig = (data[0] & 0xFF) + "/" + (1 << (data[1] & 0xFF));
+                        /*+ "; MIDI clocks per metronome tick: " + (data[2] & 0xFF)
+                        + "; 1/32 per 24 MIDI clocks: " + (data[3] & 0xFF);*/
+                metaEvents.add(new MetaEvent(timeSig, tick, TIMESIG_CHANGE));
                 break;
 
             case 0x59: // key signature
-                String strGender = (data[1] == 1) ? "minor" : "major";
-                strMessage = "Key Signature: " + KeySig.values()[data[0] + 7].toString() + " " + strGender;
-                break;
-
-            case 0x7F:
-                String strDataDump = getHexString(data);
-                strMessage = "Sequencer-Specific Meta event: " + strDataDump;
+                String minMaj = (data[1] == 1) ? "minor" : "major";
+                String key = KeySig.values()[data[0] + 7].toString() + " " + minMaj;
+                metaEvents.add(new MetaEvent(key, tick, KEYSIG_CHANGE));
                 break;
 
             default:
-                String strUnknownDump = getHexString(data);
-                strMessage = "unknown Meta event: " + strUnknownDump;
-                break;
-
+                metaEvents.add(new MetaEvent("", tick, UNKNOWN));
         }
-        return strMessage;
+    }
+
+    private static String getDivisionType(float divisionType) {
+        // divisionType is a float, so no switch-case (midi was implemented before enums were a thing)
+        if (divisionType == Sequence.PPQ) {
+            return "PPQ";
+        } else if (divisionType == Sequence.SMPTE_24) {
+            return "SMPTE, 24 frames per second";
+        } else if (divisionType == Sequence.SMPTE_25) {
+            return "SMPTE, 25 frames per second";
+        } else if (divisionType == Sequence.SMPTE_30DROP) {
+            return "SMPTE, 29.97 frames per second";
+        } else if (divisionType == Sequence.SMPTE_30) {
+            return "SMPTE, 30 frames per second";
+        } else {
+            return "Unknown division type!";
+        }
+    }
+
+    public static void toFile(List<MetaEvent> metaEvents, Path outputDir, String songname) throws IOException {
+        String filename = songname + "_meta.csv";
+        Path outputPath = outputDir.resolve(filename);
+
+        if (!Files.exists(outputPath)) {
+            Files.createFile(outputPath);
+        }
+        Files.write(outputPath, metaEvents.stream().map(MetaEvent::toCSV).collect(Collectors.toList()), Charset.forName("UTF-8"));
     }
 }

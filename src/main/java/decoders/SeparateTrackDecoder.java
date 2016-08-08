@@ -11,125 +11,97 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import static midiUtil.MidiUtil.determineKey;
+import static midiUtil.MidiUtil.isMajor;
 import static midiUtil.MidiUtil.getKeyName;
 
 /**
  * Saves all the shortmessages(note on/off) in tracks to one file per track in outputDir/trackN.csv.
  */
-public class SeparateTrackDecoder implements Decoder<ShortMessage> {
-    private final Path outputDir;
-    private final Sequence sequence;
-    private final boolean isSharp;
+public class SeparateTrackDecoder /*implements Decoder<ShortMessage, Note>*/ {
 
-    public SeparateTrackDecoder(Path outputDir, Sequence sequence) {
-        this.sequence = sequence;
-        isSharp = determineKey(sequence);
-        this.outputDir = outputDir.resolve(Paths.get("tracks"));
-        try {
-            Files.createDirectories(this.outputDir);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    /*@Override*/
+    public List<List<Note>> decode(Sequence sequence) {
+        boolean isMajor = isMajor(sequence);
 
-    private final List<midiUtil.Note> currentlyPlayingNotes = new ArrayList<>();
-    // traversal in natural order of Long(i.e. chronological, since the tick is the key
-    private final Map<Long, List<midiUtil.Note>> notes = new TreeMap<>();
+        List<List<Note>> trackList = new ArrayList<>(sequence.getTracks().length);
 
-    @Override
-    public void decode() {
         for (int trackIndex = 0; trackIndex < sequence.getTracks().length; trackIndex++) {
-            currentlyPlayingNotes.clear();
-            notes.clear();
-            Path file = outputDir.resolve(Paths.get("track" + trackIndex + ".csv"));
+            Set<Note> currentlyPlayingNotes = new HashSet<>();
+            List<Note> notes = new ArrayList<>();
+
             Track track = sequence.getTracks()[trackIndex];
+
             for (int eventIndex = 0; eventIndex < track.size(); eventIndex++) {
                 MidiEvent event = track.get(eventIndex);
-                if (event.getMessage() instanceof ShortMessage) { // in this decoder, only interested in shortmessages
+                if (event.getMessage() instanceof ShortMessage) { // only interested in shortmessages
                     long tick = event.getTick();
-                    decodeMessage((ShortMessage) event.getMessage(), tick);
+                    decodeMessage((ShortMessage) event.getMessage(), tick, isMajor, currentlyPlayingNotes, notes);
                 }
             }
-            if (notes.isEmpty()) { // no notes or note offs parsed
-                if (currentlyPlayingNotes.size() > 10) { // there are still notes which weren't ended(missing note off...) TODO why 10?
+            if (notes.isEmpty()) { // no notes or note offs parsed, or more note on's than note off's
+                if (currentlyPlayingNotes.size() > 0) { // there are still notes which weren't ended(missing note off...)
                     currentlyPlayingNotes.forEach(Note::setDefaultDuration);
                 } else {
                     continue;
                 }
             }
-            List<String> lines = new ArrayList<>();
-            notes.entrySet().forEach(entry -> entry.getValue().forEach(note -> lines.add(note.toString())));
-            try {
-                if (!Files.exists(file)) {
-                    Files.createFile(file);
-                }
-                Files.write(file, lines, Charset.forName("UTF-8"));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            trackList.add(trackIndex, notes);
         }
+        return trackList;
     }
 
-    @Override
-    public String decodeMessage(ShortMessage message, long tick) {
-        String strMessage;
+    private void decodeMessage(ShortMessage message, long tick, boolean isMajor, Set<Note> currentlyPlayingNotes,
+                               List<Note> notes) {
         switch (message.getCommand()) {
             case 0x80: // note off
-                strMessage = parseNoteOff(message, tick);
+                parseNoteOff(message, tick, isMajor, currentlyPlayingNotes, notes);
                 break;
 
-            case 0x90: // note on or note onff (note on with velocity 0, effectively note off)
-                strMessage = parseNoteOn(message, tick);
+            case 0x90: // note on or note 'onff' (note on with velocity 0, effectively note off)
+                parseNoteOn(message, tick, isMajor, currentlyPlayingNotes, notes);
                 break;
             default:
-                strMessage = "unknown message: status = " + message.getStatus() + "; byte1 = " + message.getData1() + "; byte2 = " + message.getData2();
-                break;
+                throw new IllegalArgumentException("unknown shortmessage: status = " + message.getStatus() +
+                        "; byte1 = " + message.getData1() + "; byte2 = " + message.getData2());
         }
-        return strMessage;
     }
 
-    private String parseNoteOn(ShortMessage message, long tick) {
-        if (message.getData2() == 0) { // Fake note off signal
-            return parseNoteOff(message, tick);
+    private void parseNoteOff(ShortMessage message, long tick, boolean isMajor, Set<Note> currentlyPlayingNotes,
+                              List<Note> notes) {
+        String notename = getKeyName(message.getData1(), isMajor);
+        Set<Note> stoppedNotes = currentlyPlayingNotes.stream().filter(note -> note.getName().equals(notename))
+                .collect(Collectors.toSet());
+        for (Note note : stoppedNotes) {
+            note.setDuration(tick);
+            notes.add(note);
+            currentlyPlayingNotes.remove(note); // note stopped playing
         }
-        String notename = getKeyName(message.getData1(), isSharp);
-        System.out.println(tick + " note on parsed: " + notename + ", " + message.getData2());
-        midiUtil.Note currentNote = new midiUtil.Note(notename, tick, message.getData2());
+    }
+
+    private void parseNoteOn(ShortMessage message, long tick, boolean isMajor, Set<Note> currentlyPlayingNotes,
+                             List<Note> notes) {
+        if (message.getData2() == 0) { // Fake note off signal (velocity = 0)
+            parseNoteOff(message, tick, isMajor, currentlyPlayingNotes, notes);
+        }
+        String notename = getKeyName(message.getData1(), isMajor);
+        int velocity = message.getData2();
+        Note currentNote = new Note(notename, tick, velocity);
         currentlyPlayingNotes.add(currentNote);
-        return "note On " + notename + ", velocity " + message.getData2();
     }
 
-    private String parseNoteOff(ShortMessage message, long tick) {
-        String notename = getKeyName(message.getData1(), isSharp);
-        System.out.println(tick + " note off parsed: " + notename);
-        int noteIndex = -1;
-        for (int i = 0; i < currentlyPlayingNotes.size(); i++) {
-            if (currentlyPlayingNotes.get(i).getName().equals(notename)) {
-                noteIndex = i;
-                break;
-            }
-        }
-        if (noteIndex >= 0) {
-            midiUtil.Note currentNote = currentlyPlayingNotes.get(noteIndex);
-            currentNote.setDuration(tick);
-            currentlyPlayingNotes.remove(currentNote);
-            if (notes.containsKey(currentNote.startTick)) {
-                notes.get(currentNote.startTick).add(currentNote);
-            } else {
-                List<midiUtil.Note> chord = new ArrayList<>();
-                chord.add(currentNote);
-                notes.put(currentNote.startTick, chord);
-            }
-        } else {
-            System.err.println("corresponding note on event not found!");
-        }
+    // TODO this method should write each track in a separate file
+    public void toFile(List<List<Note>> trackList, Path outputDir) throws IOException {
+        outputDir = outputDir.resolve(Paths.get("tracks"));
+        Files.createDirectories(outputDir);
 
-        return "note Off " + notename + ", velocity " + message.getData2();
+        List<String> lines = new ArrayList<>();
+        Path file = outputDir.resolve(Paths.get("track" + 7 + ".csv"));
+        if (!Files.exists(file)) {
+            Files.createFile(file);
+        }
+        Files.write(file, lines, Charset.forName("UTF-8"));
     }
 }
