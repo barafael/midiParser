@@ -4,7 +4,7 @@ package midiUtil;
  * Created by ra on 18.06.16.
  * Part of midiParser, in package midiUtil.
  */
-public class Note extends Event {
+public class NoteEvent extends Event {
     private final static int DEFAULT_OCTAVE = 1;
     private static final int DEFAULT_VELOCITY = 60;
     private static final long FALLBACK_DURATION = 200;
@@ -18,11 +18,11 @@ public class Note extends Event {
 
     private final int velocity;
 
-    public Note(String name, long tick) {
+    public NoteEvent(String name, long tick) {
         this(name, tick, DEFAULT_VELOCITY);
     }
 
-    public Note(String name, long startTick, int velocity) {
+    public NoteEvent(String name, long startTick, int velocity) {
         if (name.matches(".*\\d")) { // Note name includes octave number
             this.octave = Integer.parseInt(name.substring(name.length() - 1));
             name = name.replaceAll("\\d", "");

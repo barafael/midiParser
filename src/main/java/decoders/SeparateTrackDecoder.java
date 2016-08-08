@@ -1,6 +1,6 @@
 package decoders;
 
-import midiUtil.Note;
+import midiUtil.NoteEvent;
 
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
@@ -20,17 +20,17 @@ import static midiUtil.MidiUtil.getKeyName;
 /**
  * Saves all the shortmessages(note on/off) in tracks to one file per track in outputDir/trackN.csv.
  */
-public class SeparateTrackDecoder /*implements Decoder<ShortMessage, Note>*/ {
+public class SeparateTrackDecoder /*implements Decoder<ShortMessage, NoteEvent>*/ {
 
     /*@Override*/
-    public List<List<Note>> decode(Sequence sequence) {
+    public List<List<NoteEvent>> decode(Sequence sequence) {
         boolean isMajor = isMajor(sequence);
 
-        List<List<Note>> trackList = new ArrayList<>(sequence.getTracks().length);
+        List<List<NoteEvent>> trackList = new ArrayList<>(sequence.getTracks().length);
 
         for (int trackIndex = 0; trackIndex < sequence.getTracks().length; trackIndex++) {
-            Set<Note> currentlyPlayingNotes = new HashSet<>();
-            List<Note> notes = new ArrayList<>();
+            Set<NoteEvent> currentlyPlayingNotes = new HashSet<>();
+            List<NoteEvent> noteList = new ArrayList<>();
 
             Track track = sequence.getTracks()[trackIndex];
 
@@ -38,30 +38,30 @@ public class SeparateTrackDecoder /*implements Decoder<ShortMessage, Note>*/ {
                 MidiEvent event = track.get(eventIndex);
                 if (event.getMessage() instanceof ShortMessage) { // only interested in shortmessages
                     long tick = event.getTick();
-                    decodeMessage((ShortMessage) event.getMessage(), tick, isMajor, currentlyPlayingNotes, notes);
+                    decodeMessage((ShortMessage) event.getMessage(), tick, isMajor, currentlyPlayingNotes, noteList);
                 }
             }
-            if (notes.isEmpty()) { // no notes or note offs parsed, or more note on's than note off's
+            if (noteList.isEmpty()) { // no notes or note offs parsed, or more note on's than note off's
                 if (currentlyPlayingNotes.size() > 0) { // there are still notes which weren't ended(missing note off...)
-                    currentlyPlayingNotes.forEach(Note::setDefaultDuration);
+                    currentlyPlayingNotes.forEach(NoteEvent::setDefaultDuration);
                 } else {
                     continue;
                 }
             }
-            trackList.add(trackIndex, notes);
+            trackList.add(trackIndex, noteList);
         }
         return trackList;
     }
 
-    private void decodeMessage(ShortMessage message, long tick, boolean isMajor, Set<Note> currentlyPlayingNotes,
-                               List<Note> notes) {
+    private void decodeMessage(ShortMessage message, long tick, boolean isMajor, Set<NoteEvent> currentlyPlayingNotes,
+                               List<NoteEvent> noteList) {
         switch (message.getCommand()) {
             case 0x80: // note off
-                parseNoteOff(message, tick, isMajor, currentlyPlayingNotes, notes);
+                parseNoteOff(message, tick, isMajor, currentlyPlayingNotes, noteList);
                 break;
 
             case 0x90: // note on or note 'onff' (note on with velocity 0, effectively note off)
-                parseNoteOn(message, tick, isMajor, currentlyPlayingNotes, notes);
+                parseNoteOn(message, tick, isMajor, currentlyPlayingNotes, noteList);
                 break;
             default:
                 throw new IllegalArgumentException("unknown shortmessage: status = " + message.getStatus() +
@@ -69,31 +69,31 @@ public class SeparateTrackDecoder /*implements Decoder<ShortMessage, Note>*/ {
         }
     }
 
-    private void parseNoteOff(ShortMessage message, long tick, boolean isMajor, Set<Note> currentlyPlayingNotes,
-                              List<Note> notes) {
+    private void parseNoteOff(ShortMessage message, long tick, boolean isMajor, Set<NoteEvent> currentlyPlayingNotes,
+                              List<NoteEvent> noteList) {
         String notename = getKeyName(message.getData1(), isMajor);
-        Set<Note> stoppedNotes = currentlyPlayingNotes.stream().filter(note -> note.getName().equals(notename))
+        Set<NoteEvent> stoppedNotes = currentlyPlayingNotes.stream().filter(note -> note.getName().equals(notename))
                 .collect(Collectors.toSet());
-        for (Note note : stoppedNotes) {
+        for (NoteEvent note : stoppedNotes) {
             note.setDuration(tick);
-            notes.add(note);
+            noteList.add(note);
             currentlyPlayingNotes.remove(note); // note stopped playing
         }
     }
 
-    private void parseNoteOn(ShortMessage message, long tick, boolean isMajor, Set<Note> currentlyPlayingNotes,
-                             List<Note> notes) {
+    private void parseNoteOn(ShortMessage message, long tick, boolean isMajor, Set<NoteEvent> currentlyPlayingNotes,
+                             List<NoteEvent> noteList) {
         if (message.getData2() == 0) { // Fake note off signal (velocity = 0)
-            parseNoteOff(message, tick, isMajor, currentlyPlayingNotes, notes);
+            parseNoteOff(message, tick, isMajor, currentlyPlayingNotes, noteList);
         }
         String notename = getKeyName(message.getData1(), isMajor);
         int velocity = message.getData2();
-        Note currentNote = new Note(notename, tick, velocity);
+        NoteEvent currentNote = new NoteEvent(notename, tick, velocity);
         currentlyPlayingNotes.add(currentNote);
     }
 
     // TODO this method should write each track in a separate file
-    public void toFile(List<List<Note>> trackList, Path outputDir) throws IOException {
+    public void toFile(List<List<NoteEvent>> trackList, Path outputDir) throws IOException {
         outputDir = outputDir.resolve(Paths.get("tracks"));
         Files.createDirectories(outputDir);
 
