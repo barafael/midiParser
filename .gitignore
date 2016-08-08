@@ -18,5 +18,4 @@ hs_err_pid*
 .settings
 
 # additional files
-assets/
 /target/
