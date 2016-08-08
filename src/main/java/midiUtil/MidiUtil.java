@@ -9,7 +9,7 @@ import javax.sound.midi.Sequence;
  * Part of midiParser, in package midiUtil.
  */
 public class MidiUtil {
-    private static final byte KEY_SIGNATURE_FLAG =  0x59;
+    private static final byte KEY_SIGNATURE_FLAG = 0x59;
 
     private enum keyNamesSharp {C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B}
 
@@ -31,12 +31,13 @@ public class MidiUtil {
             return "illegal value";
         } else {
             int note = keyNumber % 12;
-            int octave = keyNumber/12 - 1;
+            int octave = keyNumber / 12 - 1;
             return sharp ? keyNamesSharp.values()[note].toString() + (octave)
                     : keyNamesFlat.values()[note].toString() + (octave);
         }
     }
 
+    /*
     private static final char[] hexDigits =
             {'0', '1', '2', '3',
                     '4', '5', '6', '7',
@@ -53,8 +54,14 @@ public class MidiUtil {
         }
         return sb.toString();
     }
+    */
 
-    public static boolean determineKey(Sequence sequence) {
+    /**
+     * Finds first key signature and assumes it to be the key of the song.
+     *
+     * @return true if song is in major (dur) or false if minor (moll)
+     */
+    public static boolean isMajor(Sequence sequence) {
         for (int trackIndex = 0; trackIndex < sequence.getTracks().length; trackIndex++) {
             for (int eventIndex = 0; eventIndex < sequence.getTracks()[trackIndex].size(); eventIndex++) {
                 MidiEvent event = sequence.getTracks()[trackIndex].get(eventIndex);

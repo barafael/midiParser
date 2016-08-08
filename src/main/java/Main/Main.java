@@ -1,9 +1,11 @@
 package Main;
 
 import decoders.MetaInfoDecoder;
-import decoders.SeparateTrackDecoder;
+import decoders.TrackDumpRecorder;
 
-import javax.sound.midi.*;
+import javax.sound.midi.InvalidMidiDataException;
+import javax.sound.midi.MidiSystem;
+import javax.sound.midi.Sequence;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,7 +20,7 @@ class Main {
     public static void main(String[] args) {
         String inFilePath;
         String assetPath = "assets/midi/";
-        String filename = "beethoven_opus10_3.mid";
+        String filename = "Bach_BrichAn.mid";
         String outputPath = assetPath + "csv/" + filename + "/";
         try {
             Files.createDirectories(Paths.get(outputPath));
@@ -42,9 +44,11 @@ class Main {
             System.exit(1);
         }
 
-        decoders.Decoder<MetaMessage> metaDecoder = new MetaInfoDecoder(Paths.get(outputPath), filename, sequence);
-        decoders.Decoder<ShortMessage> shortMessageDecoder = new SeparateTrackDecoder(Paths.get(outputPath), sequence);
-        metaDecoder.decode();
-        shortMessageDecoder.decode();
+        try {
+            MetaInfoDecoder.toFile(MetaInfoDecoder.decode(sequence), Paths.get(outputPath), filename);
+            TrackDumpRecorder.toFile(TrackDumpRecorder.decode(sequence), Paths.get(outputPath), filename);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
