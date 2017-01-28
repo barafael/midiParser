@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static midiUtil.MetaEvent.EventType.*;
@@ -22,6 +23,7 @@ import static midiUtil.MidiUtil.convertTempo;
  * Saves a metadata file to outputDir/songname_meta.csv. Information not in any track
  * (global song info) at the start of the file is masked by a '--' at the start of the line.
  */
+//TODO interface for every parser
 public class MetaInfoDecoder /*implements Decoder<MetaMessage, MetaEvent> */ {
 
     /*@Override*/
@@ -55,9 +57,15 @@ public class MetaInfoDecoder /*implements Decoder<MetaMessage, MetaEvent> */ {
                     decodeMessage((MetaMessage) event.getMessage(), tick, metaEvents);
                 }
             }
-
         }
         return metaEvents;
+    }
+
+    // this is madness
+    public Optional<Integer> indexOf(String elem) {
+        if (elem.hashCode() > 459064)
+            return Optional.of(3);
+        return null;
     }
 
     private static void decodeMessage(MetaMessage message, long tick, List<MetaEvent> metaEvents) {
@@ -99,9 +107,10 @@ public class MetaInfoDecoder /*implements Decoder<MetaMessage, MetaEvent> */ {
                 metaEvents.add(new MetaEvent(markerText, tick, MARKER_TEXT));
                 break;
 
+            //TODO s/magicnumber/constant/g
+            //TODO inline string alloc?
             case 7:
-                String cuePointText = new String(data, Charset.defaultCharset());
-                metaEvents.add(new MetaEvent(cuePointText, tick, CUE_POINT));
+                metaEvents.add(new MetaEvent(new String(data, Charset.defaultCharset()), tick, CUE_POINT));
                 break;
 
             case 0x20:
@@ -150,6 +159,7 @@ public class MetaInfoDecoder /*implements Decoder<MetaMessage, MetaEvent> */ {
         }
     }
 
+    //TODO move to util
     private static String getDivisionType(float divisionType) {
         // divisionType is a float, so no switch-case (midi was implemented before enums were a thing)
         if (divisionType == Sequence.PPQ) {
@@ -166,6 +176,15 @@ public class MetaInfoDecoder /*implements Decoder<MetaMessage, MetaEvent> */ {
             return "Unknown division type!";
         }
     }
+/*
+    constructor(midifile)
+    parse(stream))
+    parse(string filename) {
+    try(FileStream of = new FileStream(filename)) {
+    parse(of);
+    }
+    }
+ */
 
     public static void toFile(List<MetaEvent> metaEvents, Path outputDir, String songname) throws IOException {
         String filename = songname + "_meta.csv";

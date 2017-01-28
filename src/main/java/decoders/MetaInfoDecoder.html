@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>~/Code/midiParser/src/main/java/decoders/MetaInfoDecoder.java.html</title>
+<meta name="Generator" content="Vim/8.0">
+<meta name="plugin-version" content="vim7.4_v2">
+<meta name="syntax" content="java">
+<meta name="settings" content="use_css,pre_wrap,no_foldcolumn,expand_tabs,prevent_copy=">
+<meta name="colorscheme" content="none">
+<style type="text/css">
+<!--
+pre { white-space: pre-wrap; font-family: monospace; color: #ffffff; background-color: #000000; }
+body { font-family: monospace; color: #ffffff; background-color: #000000; }
+* { font-size: 1em; }
+.Todo { color: #808080; background-color: #ffff00; padding-bottom: 1px; }
+.Special { color: #ff6060; font-weight: bold; }
+.Comment { color: #00ffff; font-weight: bold; }
+.Statement { color: #ffff00; font-weight: bold; }
+.PreProc { color: #8080ff; font-weight: bold; }
+.Type { color: #00ff00; font-weight: bold; }
+.Constant { color: #ff40ff; font-weight: bold; }
+-->
+</style>
+
+<script type='text/javascript'>
+<!--
+
+-->
+</script>
+</head>
+<body>
+<pre id='vimCodeElement'>
+<span class="PreProc">package</span> decoders;
+
+<span class="PreProc">import</span> midiUtil.MetaEvent;
+
+<span class="PreProc">import</span> javax.sound.midi.MetaMessage;
+<span class="PreProc">import</span> javax.sound.midi.MidiEvent;
+<span class="PreProc">import</span> javax.sound.midi.Sequence;
+<span class="PreProc">import</span> javax.sound.midi.Track;
+<span class="PreProc">import</span> java.io.IOException;
+<span class="PreProc">import</span> java.nio.charset.Charset;
+<span class="PreProc">import</span> java.nio.file.Files;
+<span class="PreProc">import</span> java.nio.file.Path;
+<span class="PreProc">import</span> java.util.ArrayList;
+<span class="PreProc">import</span> java.util.List;
+<span class="PreProc">import</span> java.util.Optional;
+<span class="PreProc">import</span> java.util.stream.Collectors;
+
+<span class="PreProc">import static</span> midiUtil.MetaEvent.EventType.*;
+<span class="PreProc">import static</span> midiUtil.MidiUtil.KeySig;
+<span class="PreProc">import static</span> midiUtil.MidiUtil.convertTempo;
+
+<span class="Comment">/**</span>
+<span class="Comment"> *</span><span class="Special"> Saves a metadata file to outputDir/songname_meta.csv.</span><span class="Comment"> Information not in any track</span>
+<span class="Comment"> * (global song info) at the start of the file is masked by a '--' at the start of the line.</span>
+<span class="Comment"> */</span>
+<span class="Comment">//</span><span class="Todo">TODO</span><span class="Comment"> interface for every parser</span>
+<span class="Type">public</span> <span class="Type">class</span> MetaInfoDecoder <span class="Comment">/*implements Decoder&lt;MetaMessage, MetaEvent&gt; */</span> {
+
+    <span class="Comment">/*@Override*/</span>
+    <span class="Type">public</span> <span class="Type">static</span> List&lt;MetaEvent&gt; decode(Sequence sequence) {
+        List&lt;MetaEvent&gt; metaEvents = <span class="Statement">new</span> ArrayList&lt;&gt;();
+
+        metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;Length: &quot;</span> + sequence.getTickLength() + <span class="Constant">&quot; ticks&quot;</span>, <span class="Constant">0</span>, COMMENT));
+        metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;Duration: &quot;</span> + sequence.getMicrosecondLength() + <span class="Constant">&quot; microseconds&quot;</span>, <span class="Constant">0</span>, COMMENT));
+
+        String divisionType = getDivisionType(sequence.getDivisionType());
+        metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;DivisionType: &quot;</span> + divisionType, <span class="Constant">0</span>, COMMENT));
+
+        String strResolutionType;
+        <span class="Statement">if</span> (sequence.getDivisionType() == Sequence.PPQ) {
+            strResolutionType = <span class="Constant">&quot; ticks per beat&quot;</span>;
+        } <span class="Statement">else</span> {
+            strResolutionType = <span class="Constant">&quot; ticks per frame&quot;</span>;
+        }
+        metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;Resolution: &quot;</span> + sequence.getResolution() + strResolutionType, <span class="Constant">0</span>, COMMENT));
+
+        metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;Meta event parsing starts here --&quot;</span>, <span class="Constant">0</span>, COMMENT));
+
+        Track[] tracks = sequence.getTracks();
+        <span class="Statement">for</span> (<span class="Type">int</span> trackIndex = <span class="Constant">0</span>; trackIndex &lt; tracks.length; trackIndex++) {
+            metaEvents.add(<span class="Statement">new</span> MetaEvent(String.valueOf(trackIndex), <span class="Constant">0</span>, TRACK_CHANGE));
+            Track track = tracks[trackIndex];
+            <span class="Statement">for</span> (<span class="Type">int</span> eventIndex = <span class="Constant">0</span>; eventIndex &lt; track.size(); eventIndex++) {
+                MidiEvent event = track.get(eventIndex);
+                <span class="Statement">if</span> (event.getMessage() <span class="Statement">instanceof</span> MetaMessage) {
+                    <span class="Type">long</span> tick = event.getTick();
+                    decodeMessage((MetaMessage) event.getMessage(), tick, metaEvents);
+                }
+            }
+        }
+        <span class="Statement">return</span> metaEvents;
+    }
+
+    <span class="Comment">// this is madness</span>
+    <span class="Type">public</span> Optional&lt;Integer&gt; indexOf(String elem) {
+        <span class="Statement">if</span> (elem.hashCode() &gt; <span class="Constant">459064</span>)
+            <span class="Statement">return</span> Optional.of(<span class="Constant">3</span>);
+        <span class="Statement">return</span> <span class="Constant">null</span>;
+    }
+
+    <span class="Type">private</span> <span class="Type">static</span> <span class="Type">void</span> decodeMessage(MetaMessage message, <span class="Type">long</span> tick, List&lt;MetaEvent&gt; metaEvents) {
+        <span class="Type">byte</span>[] data = message.getData();
+        <span class="Statement">switch</span> (message.getType()) {
+            <span class="Comment">// </span><span class="Todo">TODO</span><span class="Comment"> introduced enum somehow; not sure if better.</span>
+            <span class="Statement">case</span> <span class="Constant">0</span>:
+                <span class="Type">int</span> sequenceNumber = ((data[<span class="Constant">0</span>] &amp; <span class="Constant">0xFF</span>) &lt;&lt; <span class="Constant">8</span>) | (data[<span class="Constant">1</span>] &amp; <span class="Constant">0xFF</span>);
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(String.valueOf(sequenceNumber), tick, SEQ_NUM));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">1</span>:
+                String text = <span class="Statement">new</span> String(data, Charset.defaultCharset());
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(text, tick, TEXT));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">2</span>:
+                String copyrightText = <span class="Statement">new</span> String(data, Charset.defaultCharset());
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(copyrightText, tick, COPYRIGHT_NOTICE));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">3</span>:
+                String trackName = <span class="Statement">new</span> String(data, Charset.defaultCharset());
+                metaEvents.add( <span class="Statement">new</span> MetaEvent(trackName, tick, SEQ_TRACK_NAME));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">4</span>:
+                String instrumentName = <span class="Statement">new</span> String(data, Charset.defaultCharset());
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(instrumentName, tick, INSTRUMENT_CHANGE));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">5</span>:
+                String lyrics = <span class="Statement">new</span> String(data, Charset.defaultCharset());
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(lyrics, tick, LYRICS));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">6</span>:
+                String markerText = <span class="Statement">new</span> String(data, Charset.defaultCharset());
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(markerText, tick, MARKER_TEXT));
+                <span class="Statement">break</span>;
+
+            <span class="Comment">//</span><span class="Todo">TODO</span><span class="Comment"> s/magicnumber/constant/g</span>
+            <span class="Comment">//</span><span class="Todo">TODO</span><span class="Comment"> inline string alloc?</span>
+            <span class="Statement">case</span> <span class="Constant">7</span>:
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Statement">new</span> String(data, Charset.defaultCharset()), tick, CUE_POINT));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">0x20</span>:
+                <span class="Type">int</span> channelPrefix = data[<span class="Constant">0</span>] &amp; <span class="Constant">0xFF</span>;
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(String.valueOf(channelPrefix), tick, CHANNEL_PREFIX));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">0x2F</span>:
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;&quot;</span>, tick, TRACK_END));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">0x51</span>:
+                <span class="Type">int</span> tempo = ((data[<span class="Constant">0</span>] &amp; <span class="Constant">0xFF</span>) &lt;&lt; <span class="Constant">16</span>)
+                        | ((data[<span class="Constant">1</span>] &amp; <span class="Constant">0xFF</span>) &lt;&lt; <span class="Constant">8</span>)
+                        | (data[<span class="Constant">2</span>] &amp; <span class="Constant">0xFF</span>);           <span class="Comment">// tempo in microseconds per beat</span>
+                <span class="Type">float</span> bpm = convertTempo(tempo);
+                <span class="Comment">// truncate to 2 digits after dot</span>
+                bpm = Math.round(bpm * <span class="Constant">100.0f</span>) / <span class="Constant">100.0f</span>;
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(String.valueOf(bpm), tick, TEMPO_CHANGE));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">0x54</span>:
+                String smpte_offset = (data[<span class="Constant">0</span>] &amp; <span class="Constant">0xFF</span>) + <span class="Constant">&quot;:&quot;</span>
+                        + (data[<span class="Constant">1</span>] &amp; <span class="Constant">0xFF</span>) + <span class="Constant">&quot;:&quot;</span>
+                        + (data[<span class="Constant">2</span>] &amp; <span class="Constant">0xFF</span>) + <span class="Constant">&quot;.&quot;</span>
+                        + (data[<span class="Constant">3</span>] &amp; <span class="Constant">0xFF</span>) + <span class="Constant">&quot;.&quot;</span>
+                        + (data[<span class="Constant">4</span>] &amp; <span class="Constant">0xFF</span>);
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(smpte_offset, tick, SMPTE_OFFSET));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">0x58</span>: <span class="Comment">// time signature</span>
+                String timeSig = (data[<span class="Constant">0</span>] &amp; <span class="Constant">0xFF</span>) + <span class="Constant">&quot;/&quot;</span> + (<span class="Constant">1</span> &lt;&lt; (data[<span class="Constant">1</span>] &amp; <span class="Constant">0xFF</span>));
+                        <span class="Comment">/*+ &quot;; MIDI clocks per metronome tick: &quot; + (data[2] &amp; 0xFF)</span>
+<span class="Comment">                        + &quot;; 1/32 per 24 MIDI clocks: &quot; + (data[3] &amp; 0xFF);*/</span>
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(timeSig, tick, TIMESIG_CHANGE));
+                <span class="Statement">break</span>;
+
+            <span class="Statement">case</span> <span class="Constant">0x59</span>: <span class="Comment">// key signature</span>
+                String minMaj = (data[<span class="Constant">1</span>] == <span class="Constant">1</span>) ? <span class="Constant">&quot;minor&quot;</span> : <span class="Constant">&quot;major&quot;</span>;
+                String key = KeySig.values()[data[<span class="Constant">0</span>] + <span class="Constant">7</span>].toString() + <span class="Constant">&quot; &quot;</span> + minMaj;
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(key, tick, KEYSIG_CHANGE));
+                <span class="Statement">break</span>;
+
+<span class="Statement">            </span><span class="Statement">default</span>:
+                metaEvents.add(<span class="Statement">new</span> MetaEvent(<span class="Constant">&quot;&quot;</span>, tick, UNKNOWN));
+        }
+    }
+
+    <span class="Comment">//</span><span class="Todo">TODO</span><span class="Comment"> move to util</span>
+    <span class="Type">private</span> <span class="Type">static</span> String getDivisionType(<span class="Type">float</span> divisionType) {
+        <span class="Comment">// divisionType is a float, so no switch-case (midi was implemented before enums were a thing)</span>
+        <span class="Statement">if</span> (divisionType == Sequence.PPQ) {
+            <span class="Statement">return</span> <span class="Constant">&quot;PPQ&quot;</span>;
+        } <span class="Statement">else</span> <span class="Statement">if</span> (divisionType == Sequence.SMPTE_24) {
+            <span class="Statement">return</span> <span class="Constant">&quot;SMPTE, 24 frames per second&quot;</span>;
+        } <span class="Statement">else</span> <span class="Statement">if</span> (divisionType == Sequence.SMPTE_25) {
+            <span class="Statement">return</span> <span class="Constant">&quot;SMPTE, 25 frames per second&quot;</span>;
+        } <span class="Statement">else</span> <span class="Statement">if</span> (divisionType == Sequence.SMPTE_30DROP) {
+            <span class="Statement">return</span> <span class="Constant">&quot;SMPTE, 29.97 frames per second&quot;</span>;
+        } <span class="Statement">else</span> <span class="Statement">if</span> (divisionType == Sequence.SMPTE_30) {
+            <span class="Statement">return</span> <span class="Constant">&quot;SMPTE, 30 frames per second&quot;</span>;
+        } <span class="Statement">else</span> {
+            <span class="Statement">return</span> <span class="Constant">&quot;Unknown division type!&quot;</span>;
+        }
+    }
+<span class="Comment">/*</span>
+<span class="Comment">    constructor(midifile)</span>
+<span class="Comment">    parse(stream))</span>
+<span class="Comment">    parse(string filename) {</span>
+<span class="Comment">    try(FileStream of = new FileStream(filename)) {</span>
+<span class="Comment">    parse(of);</span>
+<span class="Comment">    }</span>
+<span class="Comment">    }</span>
+<span class="Comment"> */</span>
+
+    <span class="Type">public</span> <span class="Type">static</span> <span class="Type">void</span> toFile(List&lt;MetaEvent&gt; metaEvents, Path outputDir, String songname) <span class="Type">throws</span> IOException {
+        String filename = songname + <span class="Constant">&quot;_meta.csv&quot;</span>;
+        Path outputPath = outputDir.resolve(filename);
+
+        <span class="Statement">if</span> (!Files.exists(outputPath)) {
+            Files.createFile(outputPath);
+        }
+        Files.write(outputPath, metaEvents.stream().map(MetaEvent::toCSV).collect(Collectors.toList()), Charset.forName(<span class="Constant">&quot;UTF-8&quot;</span>));
+    }
+}
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->

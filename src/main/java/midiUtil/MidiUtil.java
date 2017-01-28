@@ -3,6 +3,8 @@ package midiUtil;
 import javax.sound.midi.MetaMessage;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by ra on 18.06.16.
@@ -26,6 +28,7 @@ public class MidiUtil {
         return 60000000.0f / msPerBeat;
     }
 
+    //TODO use optional
     public static String getKeyName(int keyNumber, boolean sharp) {
         if (keyNumber > 127) {
             return "illegal value";

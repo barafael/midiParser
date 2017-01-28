@@ -1,7 +1,7 @@
 package Main;
 
 import decoders.MetaInfoDecoder;
-import decoders.TrackDumpRecorder;
+import decoders.ShortmessageDecoder;
 
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiSystem;
@@ -17,7 +17,7 @@ import java.nio.file.Paths;
  */
 class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InvalidMidiDataException, IOException {
         String inFilePath;
         String assetPath = "assets/midi/";
         String filename = "Bach_BrichAn.mid";
@@ -36,17 +36,11 @@ class Main {
 
         File midiFile = new File(inFilePath);
 
-        Sequence sequence = null;
-        try {
-            sequence = MidiSystem.getSequence(midiFile);
-        } catch (InvalidMidiDataException | IOException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        Sequence sequence = MidiSystem.getSequence(midiFile);
 
         try {
             MetaInfoDecoder.toFile(MetaInfoDecoder.decode(sequence), Paths.get(outputPath), filename);
-            TrackDumpRecorder.toFile(TrackDumpRecorder.decode(sequence), Paths.get(outputPath), filename);
+            ShortmessageDecoder.toFile(ShortmessageDecoder.decode(sequence), Paths.get(outputPath), filename);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -19,10 +19,12 @@ import static midiUtil.MidiUtil.isMajor;
 /**
  * Decodes all the shortmessages(note on/off) in any track to one list
  */
-public class TrackDumpRecorder /*implements Decoder<ShortMessage, NoteEvent>*/ {
+public class ShortmessageDecoder /*implements Decoder<ShortMessage, NoteEvent>*/ {
 
+    //TODO s/decode/parse/g
+    //TODO oake private
     /*@Override*/
-    public static List<NoteEvent> decode(Sequence sequence) {
+    private static List<NoteEvent> decode(final Sequence sequence) {
         boolean isMajor = isMajor(sequence);
 
         Set<NoteEvent> currentlyPlayingNotes = new HashSet<>(); // Notes for which no note off has been encountered

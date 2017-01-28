@@ -6,7 +6,6 @@ package midiUtil;
  */
 public class MetaEvent extends Event {
 
-
     public enum EventType {
         SEQ_NUM("Sequence Number: "),
         TEXT("Text Event: "),
@@ -23,7 +22,6 @@ public class MetaEvent extends Event {
         TIMESIG_CHANGE("New Time signature: "),
         KEYSIG_CHANGE("Key Signature: "),
         UNKNOWN("Unknown Meta event: "),
-
         COMMENT("-- "),
         TRACK_CHANGE("New track: "),
         ;
